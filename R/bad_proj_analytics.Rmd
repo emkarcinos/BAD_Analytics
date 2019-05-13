@@ -1,9 +1,11 @@
 ---
-title: "BAD_Proj_Analytics"
+title: "BAD_Analytics_Project"
 author: "Marcin Kostrzewski"
 date: "13/05/2019"
 output: pdf_document
 ---
+
+Raport został wygenerowany przy użyciu danych udostępnionych przez [Departament Transportu Stanów Zjednoczonych](https://www.transtats.bts.gov/DL_SelectFields.asp?Table_ID=236)
 
 ```{r, echo=FALSE}
 con <- DBI::dbConnect(odbc::odbc(),
@@ -15,7 +17,7 @@ con <- DBI::dbConnect(odbc::odbc(),
                       port = 5432)
 ```
 
-## Jakie było średnie opóźnienie przylotu?
+# Jakie było średnie opóźnienie przylotu?
 
 ```{sql, connection=con, tab.cap = NA}
 SELECT CAST(AVG(arr_delay) AS NUMERIC(30,3)) AS 'Average delay (minutes)'
@@ -23,7 +25,7 @@ FROM Flight_delays
 WHERE arr_delay IS NOT NULL;
 ```
 
-## Jakie było maksymalne opóźnienie przylotu?
+# Jakie było maksymalne opóźnienie przylotu?
 
 ```{sql, connection=con, tab.cap = NA}
 SELECT CAST(MAX(arr_delay)/60 AS NUMERIC(30,3)) AS 'Max delay (hours)'
@@ -31,7 +33,7 @@ FROM Flight_delays
 WHERE arr_delay IS NOT NULL;
 ```
 
-## Który lot miał największe opóźnienie przylotu?
+# Który lot miał największe opóźnienie przylotu?
 
 ```{sql, connection=con, tab.cap = NA}
 SELECT carrier AS 'Carrier',
@@ -45,7 +47,7 @@ WHERE  arr_delay = (SELECT MAX(arr_delay)
                     WHERE  arr_delay IS NOT NULL);
 ```
 
-## Które dni tygodnia są najgorsze do podróżowania?
+# Które dni tygodnia są najgorsze do podróżowania?
 
 ```{sql, connection=con, tab.cap = NA}
 SELECT   CASE WHEN day_of_week = 1 THEN 'Monday'
@@ -62,7 +64,7 @@ GROUP BY day_of_week
 ORDER BY AVG(arr_delay) DESC;
 ```
 
-## Które linie lotnicze latające z San Francisco (SFO) mają najmniejsze opóźnienia przylotu?
+# Które linie lotnicze latające z San Francisco (SFO) mają najmniejsze opóźnienia przylotu?
 
 ```{sql, connection=con, tab.cap = NA}
 SELECT   F1.carrier AS 'Carrier',
@@ -78,7 +80,7 @@ ORDER BY "Delay (minutes)" ASC;
 
 *Pojawiające się w tabeli wartości ujemne oznaczają, że średnio samoloty lądowały wcześniej, niż przewidziano, czyli były przyśpieszone.*
 
-## Jaka część linii lotniczych ma regularne opóźnienia, tj. jej lot ma średnio co najmniej 10 min. opóźnienia?
+# Jaka część linii lotniczych ma regularne opóźnienia, tj. jej lot ma średnio co najmniej 10 min. opóźnienia?
 
 ```{sql, connection=con, tab.cap = NA, echo=FALSE}
 SELECT (SELECT COUNT(*)
@@ -96,8 +98,9 @@ SELECT (SELECT COUNT(*)
                                                                 GROUP BY carrier) AS T) AS FLOAT) AS 'Part of continuous delays';
 ```
 
-## Jak opóźnienia wylotów wpływają na opóźnienia przylotów?
-```{r, con, echo=FALSE}
+# Jak opóźnienia wylotów wpływają na opóźnienia przylotów?
+
+```{r, connection=con, tab.cap = NA}
 data <- DBI::dbGetQuery(con, "SELECT dep_delay,
        arr_delay
 FROM   Flight_delays
@@ -106,4 +109,74 @@ WHERE  dep_delay IS NOT NULL AND arr_delay IS NOT NULL;")
 library(knitr)
 res <- cor(data, use = "all", method = "pearson")
 kable(res[2:2])
+```
+
+# Która linia lotnicza miała największy wzrost (w wartościach bezwzględnych) średniego opóźnienia przylotów w ostatnim tygodniu miesiąca, tj. między 1-23 a 24-31 lipca?
+
+```{sql, connection=con, tab.cap = NA, max.print = NA}
+SET NOCOUNT ON
+DECLARE @1_23avg TABLE
+(
+       carrier VARCHAR(50),
+       avg     FLOAT
+);
+
+INSERT INTO @1_23avg
+SELECT   carrier,
+         AVG(avg1) AS 'avg1A'
+FROM     (SELECT   carrier,
+                   AVG(arr_delay) AS 'avg1'
+          FROM     Flight_delays
+          WHERE    month = 7
+          GROUP BY carrier, day_of_month
+          HAVING   day_of_month BETWEEN 1 AND 23) AS T1
+GROUP BY  carrier;
+
+
+DECLARE @24_31avg TABLE
+(
+       carrier VARCHAR(50),
+       avg     FLOAT
+);
+
+INSERT INTO @24_31avg
+SELECT   carrier,
+         AVG(avg2) AS 'avg2A'
+FROM     (SELECT   carrier,
+                   AVG(arr_delay) AS 'avg2'
+          FROM     Flight_delays
+          WHERE    month = 7
+          GROUP BY carrier, day_of_month
+          HAVING   day_of_month BETWEEN 24 AND 31) AS T2
+GROUP BY  carrier;
+SET NOCOUNT OFF;
+SELECT   T1.carrier AS 'Carrier',
+         T1.avg-T2.avg AS 'Delay growth'
+FROM     @1_23avg T1 INNER JOIN @24_31avg T2
+                     ON T1.carrier = T2.carrier
+ORDER BY T1.avg-T2.avg DESC;
+```
+
+# Które linie lotnicze latają zarówno na trasie SFO → PDX (Portland), jak i SFO → EUG (Eugene)?
+
+```{sql, connection=con, tab.cap = NA}
+SELECT DISTINCT carrier AS 'Carrier'
+FROM   Flight_delays
+WHERE  origin LIKE 'SFO'
+       AND
+       (dest IN ('PDX', 'EUG'))
+```
+
+# Jak najszybciej dostać się z Chicago do Stanfordu, zakładając wylot po 14:00 czasu lokalnego?
+
+```{sql, connection=con, tab.cap = NA}
+SELECT   origin AS 'Origin',
+         dest AS 'Destination',
+         AVG(arr_delay) AS 'Delay'
+FROM     Flight_delays
+WHERE    origin IN ('MDW', 'ORD')
+         AND dest IN ('SFO', 'SJC', 'OAK')
+         AND crs_dep_time>1400
+GROUP BY origin, dest
+ORDER BY AVG(arr_delay) DESC;
 ```
