@@ -1,0 +1,109 @@
+---
+title: "BAD_Proj_Analytics"
+author: "Marcin Kostrzewski"
+date: "13/05/2019"
+output: pdf_document
+---
+
+```{r, echo=FALSE}
+con <- DBI::dbConnect(odbc::odbc(),
+                      driver = "SQL Server",
+                      database = "dbad_flights",
+                      UID    = "dbad_s444409",
+                      PWD    = "qAOKvlYA6e",
+                      server = "mssql-2016.labs.wmi.amu.edu.pl",
+                      port = 5432)
+```
+
+## Jakie było średnie opóźnienie przylotu?
+
+```{sql, connection=con, tab.cap = NA}
+SELECT CAST(AVG(arr_delay) AS NUMERIC(30,3)) AS 'Average delay (minutes)'
+FROM Flight_delays
+WHERE arr_delay IS NOT NULL;
+```
+
+## Jakie było maksymalne opóźnienie przylotu?
+
+```{sql, connection=con, tab.cap = NA}
+SELECT CAST(MAX(arr_delay)/60 AS NUMERIC(30,3)) AS 'Max delay (hours)'
+FROM Flight_delays
+WHERE arr_delay IS NOT NULL;
+```
+
+## Który lot miał największe opóźnienie przylotu?
+
+```{sql, connection=con, tab.cap = NA}
+SELECT carrier AS 'Carrier',
+       origin_city_name AS 'Origin',
+       dest_city_name AS 'Destination',
+       fl_date AS 'Date',
+       arr_delay AS 'Delay (minutes)'
+FROM   Flight_delays
+WHERE  arr_delay = (SELECT MAX(arr_delay)
+                    FROM   Flight_delays
+                    WHERE  arr_delay IS NOT NULL);
+```
+
+## Które dni tygodnia są najgorsze do podróżowania?
+
+```{sql, connection=con, tab.cap = NA}
+SELECT   CASE WHEN day_of_week = 1 THEN 'Monday'
+              WHEN day_of_week = 2 THEN 'Tuesday'
+              WHEN day_of_week = 3 THEN 'Wednesday'
+              WHEN day_of_week = 4 THEN 'Thursday'
+              WHEN day_of_week = 5 THEN 'Friday'
+              WHEN day_of_week = 6 THEN 'Saturday'
+              WHEN day_of_week = 7 THEN 'Sunday'
+         END AS 'Day',
+         AVG(arr_delay) AS 'Average Delay (minutes)'
+FROM     Flight_delays
+GROUP BY day_of_week
+ORDER BY AVG(arr_delay) DESC;
+```
+
+## Które linie lotnicze latające z San Francisco (SFO) mają najmniejsze opóźnienia przylotu?
+
+```{sql, connection=con, tab.cap = NA}
+SELECT   F1.carrier AS 'Carrier',
+         (SELECT   AVG(F2.arr_delay) AS 'avg_delay'
+          FROM     Flight_delays F2
+          WHERE    F1.carrier = F2.carrier
+          GROUP BY F2.carrier) AS 'Delay (minutes)'
+FROM     Flight_delays F1
+WHERE    F1.origin_city_name LIKE 'San Francisco%'
+GROUP BY F1.carrier
+ORDER BY "Delay (minutes)" ASC;
+```
+
+*Pojawiające się w tabeli wartości ujemne oznaczają, że średnio samoloty lądowały wcześniej, niż przewidziano, czyli były przyśpieszone.*
+
+## Jaka część linii lotniczych ma regularne opóźnienia, tj. jej lot ma średnio co najmniej 10 min. opóźnienia?
+
+```{sql, connection=con, tab.cap = NA, echo=FALSE}
+SELECT (SELECT COUNT(*)
+        FROM (SELECT   F1.carrier,
+                       (SELECT AVG(arr_delay)
+                        FROM   Flight_delays F2
+                        WHERE  F1.carrier=F2.carrier
+                        GROUP BY F2.carrier
+                        HAVING AVG(F1.arr_delay)>10) AS 'avg_delay'
+              FROM     Flight_delays F1
+              GROUP BY F1.carrier) AS t
+              WHERE    t.avg_delay IS NOT NULL) / CAST((SELECT COUNT(*)
+                                                        FROM   (SELECT   COUNT(*) AS 'count'
+                                                                FROM     Flight_delays
+                                                                GROUP BY carrier) AS T) AS FLOAT) AS 'Part of continuous delays';
+```
+
+## Jak opóźnienia wylotów wpływają na opóźnienia przylotów?
+```{r, con, echo=FALSE}
+data <- DBI::dbGetQuery(con, "SELECT dep_delay,
+       arr_delay
+FROM   Flight_delays
+WHERE  dep_delay IS NOT NULL AND arr_delay IS NOT NULL;")
+
+library(knitr)
+res <- cor(data, use = "all", method = "pearson")
+kable(res[2:2])
+```
