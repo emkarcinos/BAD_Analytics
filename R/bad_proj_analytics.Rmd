@@ -11,8 +11,8 @@ Raport został wygenerowany przy użyciu danych udostępnionych przez [Departame
 con <- DBI::dbConnect(odbc::odbc(),
                       driver = "SQL Server",
                       database = "dbad_flights",
-                      UID    = "dbad_s444409",
-                      PWD    = "qAOKvlYA6e",
+                      UID    = "user",
+                      PWD    = "pass",
                       server = "mssql-2016.labs.wmi.amu.edu.pl",
                       port = 5432)
 ```
