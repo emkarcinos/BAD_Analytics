@@ -5,7 +5,7 @@ date: "13/05/2019"
 output: pdf_document
 ---
 
-Raport został wygenerowany przy użyciu danych udostępnionych przez [Departament Transportu Stanów Zjednoczonych](https://www.transtats.bts.gov/DL_SelectFields.asp?Table_ID=236)
+Raport został wygenerowany przy użyciu danych udostępnionych przez [Departament Transportu Stanów Zjednoczonych](https://www.transtats.bts.gov/DL_SelectFields.asp?Table_ID=236).
 
 ```{r, echo=FALSE}
 con <- DBI::dbConnect(odbc::odbc(),
@@ -82,20 +82,33 @@ ORDER BY "Delay (minutes)" ASC;
 
 # Jaka część linii lotniczych ma regularne opóźnienia, tj. jej lot ma średnio co najmniej 10 min. opóźnienia?
 
-```{sql, connection=con, tab.cap = NA, echo=FALSE}
+```{sql, connection=con, tab.cap = NA}
+WITH reg_dlys
+AS
+(
+SELECT   F1.carrier,
+         (SELECT AVG(arr_delay)
+          FROM   Flight_delays F2
+          WHERE  F1.carrier=F2.carrier
+          GROUP BY F2.carrier
+          HAVING AVG(F1.arr_delay)>10) AS 'avg_delay'
+FROM     Flight_delays F1
+GROUP BY F1.carrier
+),
+carriers_sum
+AS
+(
+SELECT COUNT(*)  AS 'sum'
+FROM   (SELECT   COUNT(*) AS 'count'
+        FROM     Flight_delays
+        GROUP BY carrier) AS T
+)
 SELECT (SELECT COUNT(*)
-        FROM (SELECT   F1.carrier,
-                       (SELECT AVG(arr_delay)
-                        FROM   Flight_delays F2
-                        WHERE  F1.carrier=F2.carrier
-                        GROUP BY F2.carrier
-                        HAVING AVG(F1.arr_delay)>10) AS 'avg_delay'
-              FROM     Flight_delays F1
-              GROUP BY F1.carrier) AS t
-              WHERE    t.avg_delay IS NOT NULL) / CAST((SELECT COUNT(*)
-                                                        FROM   (SELECT   COUNT(*) AS 'count'
-                                                                FROM     Flight_delays
-                                                                GROUP BY carrier) AS T) AS FLOAT) AS 'Part of continuous delays';
+        FROM   reg_dlys t
+        WHERE  t.avg_delay IS NOT NULL) /
+                    CAST((SELECT *
+                          FROM   carriers_sum) AS FLOAT)
+               AS 'Part of continuous delays';
 ```
 
 # Jak opóźnienia wylotów wpływają na opóźnienia przylotów?
@@ -114,48 +127,40 @@ kable(res[2:2])
 # Która linia lotnicza miała największy wzrost (w wartościach bezwzględnych) średniego opóźnienia przylotów w ostatnim tygodniu miesiąca, tj. między 1-23 a 24-31 lipca?
 
 ```{sql, connection=con, tab.cap = NA, max.print = NA}
-SET NOCOUNT ON
-DECLARE @1_23avg TABLE
+WITH A1_23avg
+AS
 (
-       carrier VARCHAR(50),
-       avg     FLOAT
-);
-
-INSERT INTO @1_23avg
 SELECT   carrier,
-         AVG(avg1) AS 'avg1A'
+         AVG(avg1) AS 'avg'
 FROM     (SELECT   carrier,
                    AVG(arr_delay) AS 'avg1'
           FROM     Flight_delays
           WHERE    month = 7
           GROUP BY carrier, day_of_month
           HAVING   day_of_month BETWEEN 1 AND 23) AS T1
-GROUP BY  carrier;
-
-
-DECLARE @24_31avg TABLE
+GROUP BY  carrier
+),
+A24_31avg
+AS
 (
-       carrier VARCHAR(50),
-       avg     FLOAT
-);
-
-INSERT INTO @24_31avg
 SELECT   carrier,
-         AVG(avg2) AS 'avg2A'
+         AVG(avg2) AS 'avg'
 FROM     (SELECT   carrier,
                    AVG(arr_delay) AS 'avg2'
           FROM     Flight_delays
           WHERE    month = 7
           GROUP BY carrier, day_of_month
           HAVING   day_of_month BETWEEN 24 AND 31) AS T2
-GROUP BY  carrier;
-SET NOCOUNT OFF;
+GROUP BY  carrier
+)
 SELECT   T1.carrier AS 'Carrier',
          T1.avg-T2.avg AS 'Delay growth'
-FROM     @1_23avg T1 INNER JOIN @24_31avg T2
+FROM     A1_23avg T1 INNER JOIN A24_31avg T2
                      ON T1.carrier = T2.carrier
 ORDER BY T1.avg-T2.avg DESC;
 ```
+
+*Wartości ujemne oznaczają spadek opóźnień*
 
 # Które linie lotnicze latają zarówno na trasie SFO → PDX (Portland), jak i SFO → EUG (Eugene)?
 
@@ -180,3 +185,4 @@ WHERE    origin IN ('MDW', 'ORD')
 GROUP BY origin, dest
 ORDER BY AVG(arr_delay) DESC;
 ```
+

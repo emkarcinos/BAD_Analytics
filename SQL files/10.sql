@@ -1,3 +1,6 @@
+--USE dbad_flights
+--GO
+
 SELECT   origin AS 'Origin',
          dest AS 'Destination',
          AVG(arr_delay) AS 'Delay'
