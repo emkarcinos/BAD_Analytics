@@ -1,8 +1,8 @@
---USE dbad_flights
---GO
+USE dbad_flights
+GO
 
 SELECT   F1.carrier AS 'Carrier',
-         (SELECT   AVG(F2.arr_delay) AS 'avg_delay'
+         (SELECT   AVG(F2.arr_delay_new) AS 'avg_delay'
           FROM     Flight_delays F2
           WHERE    F1.carrier = F2.carrier
           GROUP BY F2.carrier) AS 'Delay (minutes)'

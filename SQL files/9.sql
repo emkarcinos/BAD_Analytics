@@ -1,5 +1,5 @@
---USE dbad_flights
---GO
+USE dbad_flights
+GO
 
 SELECT DISTINCT carrier AS 'Carrier'
 FROM   Flight_delays

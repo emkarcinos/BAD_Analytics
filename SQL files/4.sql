@@ -1,5 +1,5 @@
---USE dbad_flights
---GO
+USE dbad_flights
+GO
 
 SELECT   CASE WHEN day_of_week = 1 THEN 'Monday'
               WHEN day_of_week = 2 THEN 'Tuesday'
@@ -9,7 +9,7 @@ SELECT   CASE WHEN day_of_week = 1 THEN 'Monday'
               WHEN day_of_week = 6 THEN 'Saturday'
               WHEN day_of_week = 7 THEN 'Sunday'
          END AS 'Day',
-         AVG(arr_delay) AS 'Average Delay (minutes)'
+         AVG(arr_delay_new) AS 'Average Delay (minutes)'
 FROM     Flight_delays
 GROUP BY day_of_week
-ORDER BY AVG(arr_delay) DESC;
+ORDER BY AVG(arr_delay_new) DESC;

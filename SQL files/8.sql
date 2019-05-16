@@ -1,5 +1,5 @@
---USE dbad_flights
---GO
+USE dbad_flights
+GO
 
 WITH A1_23avg
 AS
@@ -7,7 +7,7 @@ AS
 SELECT   carrier,
          AVG(avg1) AS 'avg'
 FROM     (SELECT   carrier,
-                   AVG(arr_delay) AS 'avg1'
+                   AVG(arr_delay_new) AS 'avg1'
           FROM     Flight_delays
           WHERE    month = 7
           GROUP BY carrier, day_of_month
@@ -20,7 +20,7 @@ AS
 SELECT   carrier,
          AVG(avg2) AS 'avg'
 FROM     (SELECT   carrier,
-                   AVG(arr_delay) AS 'avg2'
+                   AVG(arr_delay_new) AS 'avg2'
           FROM     Flight_delays
           WHERE    month = 7
           GROUP BY carrier, day_of_month

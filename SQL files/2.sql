@@ -1,6 +1,6 @@
---USE dbad_flights
---GO
+USE dbad_flights
+GO
 
-SELECT CAST(MAX(arr_delay)/60 AS NUMERIC(30,3)) AS 'Max delay (hours)'
+SELECT CAST(MAX(arr_delay_new) AS NUMERIC(30,3)) AS 'Max delay (minutes)'
 FROM Flight_delays
-WHERE arr_delay IS NOT NULL;
+WHERE arr_delay_new IS NOT NULL;
