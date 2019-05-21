@@ -21,9 +21,9 @@ FROM   (SELECT   COUNT(*) AS 'count'
         FROM     Flight_delays
         GROUP BY carrier) AS T
 )
-SELECT (SELECT COUNT(*)
+SELECT CAST((SELECT COUNT(*)
         FROM   reg_dlys t
         WHERE  t.avg_delay IS NOT NULL) /
                     CAST((SELECT *
-                          FROM   carriers_sum) AS FLOAT)
+                          FROM   carriers_sum) AS FLOAT) AS NUMERIC(5,3))
                AS 'Part of continuous delays';
