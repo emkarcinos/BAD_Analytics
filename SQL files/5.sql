@@ -9,4 +9,4 @@ SELECT   F1.carrier AS 'Carrier',
 FROM     Flight_delays F1
 WHERE    F1.origin_city_name LIKE 'San Francisco%'
 GROUP BY F1.carrier
-ORDER BY "Delay (minutes)" ASC;
+ORDER BY "Delay (minutes)" DESC;

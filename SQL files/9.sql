@@ -1,8 +1,14 @@
 USE dbad_flights
 GO
 
-SELECT DISTINCT carrier AS 'Carrier'
+SELECT DISTINCT carrier
 FROM   Flight_delays
 WHERE  origin LIKE 'SFO'
-       AND
-       (dest IN ('PDX', 'EUG'))
+       AND dest LIKE 'PDX'
+
+INTERSECT
+
+SELECT DISTINCT carrier
+FROM   Flight_delays
+WHERE  origin LIKE 'SFO'
+       AND dest LIKE 'EUG'
